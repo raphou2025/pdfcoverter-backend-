@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // 👈 ADD THIS LINE
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  email             String   @unique
+  passwordHash      String
+  name              String?
+  avatarUrl         String?
+  role              String   @default("USER")
+  preferredLanguage String   @default("en")
+  createdAt         DateTime @default(now())
+  
+  conversions       ConversionHistory[]
+  translations      TranslationHistory[]
+}
+
+model ConversionHistory {
+  id               String   @id @default(uuid())
+  userId           Int      // 👈 Notice this is Int to match the User model
+  originalFileName String
+  fileUrl          String
+  outputUrl        String?
+  outputFormat     String?
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+  
+  user             User     @relation(fields: [userId], references: [id])
+}
+
+model TranslationHistory {
+  id             String   @id @default(uuid())
+  userId         Int      // 👈 Notice this is Int to match the User model
+  sourceText     String
+  translatedText String
+  sourceLang     String
+  targetLang     String
+  createdAt      DateTime @default(now())
+  
+  user           User     @relation(fields: [userId], references: [id])
+}
