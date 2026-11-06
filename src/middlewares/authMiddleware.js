@@ -29,12 +29,21 @@ const protect = async (req, res, next) => {
   }
 };
 
-const requireAdmin = (req, res, next) => {
-  if (req.user?.role !== 'ADMIN') {
-    return res.status(403).json({ message: 'Admin access required' });
-  }
+// const requireAdmin = (req, res, next) => {
+//   if (req.user?.role !== 'ADMIN') {
+//     return res.status(403).json({ message: 'Admin access required' });
+//   }
 
-  return next();
+//   return next();
+// };
+
+const requireAdmin = (req, res, next) => {
+  // req.user is populated by the 'protect' middleware
+  if (req.user && req.user.role === 'ADMIN') {
+    next(); // User is an admin, let them pass
+  } else {
+    res.status(403).json({ message: 'Access denied. Admin privileges required.' }); // Block normal users
+  }
 };
 
 module.exports = { protect, requireAdmin };
