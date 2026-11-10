@@ -208,11 +208,30 @@ const getMonitoringStats = async (req, res) => {
 const getUsers = async (req, res) => {
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
   const pageSize = Math.min(50, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 20));
+  const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
+  const role = req.query.role || 'ALL';
+
+  if (!['ALL', 'USER', 'ADMIN'].includes(role)) {
+    return res.status(400).json({ message: 'Role filter must be ALL, USER, or ADMIN' });
+  }
+
+  const where = {
+    ...(role === 'ALL' ? {} : { role }),
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } }
+          ]
+        }
+      : {})
+  };
 
   try {
     const [total, users] = await Promise.all([
-      prisma.user.count(),
+      prisma.user.count({ where }),
       prisma.user.findMany({
+        where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,

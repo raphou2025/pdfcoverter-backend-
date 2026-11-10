@@ -9,6 +9,53 @@ const getUserProfile = async (req, res) => {
   res.json(req.user);
 };
 
+const exportUserData = async (req, res) => {
+  try {
+    const [profile, conversions, translations] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          preferredLanguage: true,
+          createdAt: true
+        }
+      }),
+      prisma.conversionHistory.findMany({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          originalFileName: true,
+          outputFormat: true,
+          status: true,
+          createdAt: true
+        }
+      }),
+      prisma.translationHistory.findMany({
+        where: { userId: req.user.id },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          sourceText: true,
+          translatedText: true,
+          sourceLang: true,
+          targetLang: true,
+          createdAt: true
+        }
+      })
+    ]);
+
+    if (!profile) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ exportedAt: new Date().toISOString(), profile, conversions, translations });
+  } catch (error) {
+    console.error('Failed to export user data:', error);
+    res.status(500).json({ message: 'Failed to export account data' });
+  }
+};
+
 // @desc Update user settings
 const updateUserSettings = async (req, res) => {
   const { name, preferredLanguage } = req.body || {};
@@ -130,10 +177,41 @@ const changePassword = async (req, res) => {
   }
 };
 
+const deleteOwnAccount = async (req, res) => {
+  const { password } = req.body || {};
+  if (typeof password !== 'string' || !password) {
+    return res.status(400).json({ message: 'Password is required to delete your account' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { passwordHash: true }
+    });
+
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      return res.status(401).json({ message: 'Incorrect password' });
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      await transaction.conversionHistory.deleteMany({ where: { userId: req.user.id } });
+      await transaction.translationHistory.deleteMany({ where: { userId: req.user.id } });
+      await transaction.user.delete({ where: { id: req.user.id } });
+    });
+
+    return res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete user account:', error);
+    return res.status(500).json({ message: 'Failed to delete account' });
+  }
+};
+
 module.exports = {
   getUserProfile,
+  exportUserData,
   updateUserSettings,
   uploadProfilePicture,
   removeProfilePicture,
-  changePassword
+  changePassword,
+  deleteOwnAccount
 };
