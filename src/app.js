@@ -28,6 +28,7 @@ app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/user", require("./routes/userRoutes"));
 app.use("/api/files", require("./routes/fileRoutes"));
+app.use('/api/tools', require('./routes/pdfToolsRoutes'));
 app.use("/api/translate", require("./routes/translateRoutes"));
 
 // Error Handler
